@@ -1,16 +1,7 @@
 <?php
-/**
- * add_devis.php
- *
- * Crée un devis dans la table `devis`.
- * Champs obligatoires : numero_devis, client_id, date_sortie, horaire_embquement,
- *                       duree, nombre_passagers, prix_ttc
- * Réponse JSON.
- */
+declare(strict_types=1);
 
-/* -------------------------------------------------------------------------
-   CORS dynamique : liste blanche d’origines autorisées
-   ----------------------------------------------------------------------- */
+// 🌍 CORS dynamique : liste blanche d’origines autorisées
 $allowed_origins = [
     'https://idelo.creacodeal.store',
     'https://bee-book-voyage-manager-production.up.railway.app',
@@ -18,23 +9,23 @@ $allowed_origins = [
     'http://localhost:8080',
 ];
 
-if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins, true)) {
-    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-    header('Access-Control-Allow-Credentials: true');
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowed_origins, true)) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Access-Control-Allow-Credentials: true");
 }
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json; charset=UTF-8');
 
-/* Pré‑vol OPTIONS */
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Content-Type: application/json; charset=UTF-8");
+
+// 🔁 Pré-vol OPTIONS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-/* -------------------------------------------------------------------------
-   Vérification méthode
-   ----------------------------------------------------------------------- */
+// ❌ Vérification méthode
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode([
@@ -44,12 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-/* -------------------------------------------------------------------------
-   Lecture & validation JSON
-   ----------------------------------------------------------------------- */
-$raw   = file_get_contents('php://input');
+// 📥 Lecture du JSON brut
+$raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 
+// ❌ JSON invalide
 if (json_last_error() !== JSON_ERROR_NONE) {
     http_response_code(400);
     echo json_encode([
@@ -60,11 +50,12 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-/* Champs requis */
+// ✅ Vérification des champs requis
 $required = [
     'numero_devis', 'client_id', 'date_sortie', 'horaire_embarquement',
     'duree', 'nombre_passagers', 'prix_ttc'
 ];
+
 foreach ($required as $field) {
     if (empty($input[$field])) {
         http_response_code(422);
@@ -76,9 +67,7 @@ foreach ($required as $field) {
     }
 }
 
-/* -------------------------------------------------------------------------
-   Extraction & typage
-   ----------------------------------------------------------------------- */
+// 🧪 Typage & extraction
 $numero_devis         = trim($input['numero_devis']);
 $client_id            = trim($input['client_id']);
 $date_sortie          = trim($input['date_sortie']);
@@ -93,20 +82,14 @@ $statut         = isset($input['statut'])         ? trim($input['statut'])      
 $sortie_comptee = isset($input['sortie_comptee']) ? (int) $input['sortie_comptee'] : 1;
 $notes          = isset($input['notes'])          ? trim($input['notes'])          : null;
 
-/* -------------------------------------------------------------------------
-   Connexion BD
-   ----------------------------------------------------------------------- */
+// 🔌 Connexion BD
 require_once __DIR__ . '/db.php';
 $pdo = get_db_connection();
 
-/* -------------------------------------------------------------------------
-   Génération ID
-   ----------------------------------------------------------------------- */
-$id = bin2hex(random_bytes(12));   // 24 caractères hex.
+// 🔑 Génération ID unique
+$id = bin2hex(random_bytes(12)); // 24 caractères
 
-/* -------------------------------------------------------------------------
-   Insertion
-   ----------------------------------------------------------------------- */
+// 📝 Insertion SQL
 try {
     $sql = <<<'SQL'
         INSERT INTO devis (
